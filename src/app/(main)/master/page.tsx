@@ -25,7 +25,7 @@ const ENRICH = [
 function enrich(agents: Record<string, unknown>[]): ClientRow[] {
   return agents.map((a, i) => {
     const e = ENRICH[i % ENRICH.length]
-    return { ...a, ...e, last_active: new Date(Date.now() - e.minsAgo * 60_000) } as ClientRow
+    return { ...a, ...e, last_active: new Date(Date.now() - e.minsAgo * 60_000) } as unknown as ClientRow
   })
 }
 
