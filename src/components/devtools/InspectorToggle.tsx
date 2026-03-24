@@ -144,7 +144,7 @@ const InspectorToggle = () => {
       _debugSource?: { fileName: string; lineNumber: number }
       return?: Fiber | null
     }
-    const fiber = key ? (el as Record<string, unknown>)[key] as Fiber : null
+    const fiber = key ? (el as unknown as Record<string, unknown>)[key] as Fiber : null
 
     let bestFiber: Fiber | null = null
     let current: Fiber | null = fiber
@@ -177,7 +177,7 @@ const InspectorToggle = () => {
       while (domParent && domSteps < 12 && !bestFiber) {
         const pKey = Object.keys(domParent).find(k => k.startsWith('__reactFiber$'))
         if (pKey) {
-          let pCur: Fiber | null = (domParent as Record<string, unknown>)[pKey] as Fiber
+          let pCur: Fiber | null = (domParent as unknown as Record<string, unknown>)[pKey] as Fiber
           let pAtt = 0
           // Pass 1 on parent fiber
           while (pCur && pAtt < 30) {
@@ -189,7 +189,7 @@ const InspectorToggle = () => {
           }
           // Pass 2 on parent fiber
           if (!bestFiber) {
-            pCur = (domParent as Record<string, unknown>)[pKey] as Fiber
+            pCur = (domParent as unknown as Record<string, unknown>)[pKey] as Fiber
             pAtt = 0
             while (pCur && pAtt < 30) {
               if (pCur._debugSource) { bestFiber = pCur; break }

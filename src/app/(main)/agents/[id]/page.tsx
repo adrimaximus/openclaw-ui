@@ -115,6 +115,14 @@ export default function AgentPage() {
 
   const CREDENTIALS = ['GLM 5', 'GLM 4v', 'MiniMax-VL-01', 'M2.7', '+ Create New']
 
+  // Credential to model mapping
+  const CREDENTIAL_MODEL_MAP: Record<string, { model: string; model_name: string; base_path: string }> = {
+    'GLM 5': { model: 'glm', model_name: 'glm-4', base_path: 'https://open.bigmodel.cn/api/paas/v4' },
+    'GLM 4v': { model: 'glm', model_name: 'glm-4v', base_path: 'https://open.bigmodel.cn/api/paas/v4' },
+    'MiniMax-VL-01': { model: 'minimax-m2.5', model_name: 'MiniMax-VL-01', base_path: 'https://api.minimax.io/v1' },
+    'M2.7': { model: 'minimax-m2.5', model_name: 'MiniMax-M2.7', base_path: 'https://api.minimax.io/v1' },
+  }
+
   const selectedModelDef = MODELS_LIST.find(m => m.value === form.model)
 
   // ── New agent page
@@ -179,7 +187,15 @@ export default function AgentPage() {
             <label className="block text-xs font-semibold text-[#6f797a] mb-1.5">Connect Credential <span className="text-red-400">*</span></label>
             <div className="flex gap-2">
               <select value={form.credential}
-                onChange={e => setForm(f => ({ ...f, credential: e.target.value }))}
+                onChange={e => {
+                  const cred = e.target.value
+                  const mapping = CREDENTIAL_MODEL_MAP[cred]
+                  setForm(f => ({
+                    ...f,
+                    credential: cred,
+                    ...(mapping && { model: mapping.model, model_name: mapping.model_name, base_path: mapping.base_path })
+                  }))
+                }}
                 className="flex-1 border border-[#e0e3e5] rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 bg-white">
                 <option value="">Pilih credential…</option>
                 {CREDENTIALS.map(c => <option key={c} value={c}>{c}</option>)}
@@ -198,6 +214,7 @@ export default function AgentPage() {
                 onChange={e => setForm(f => ({ ...f, model_name: e.target.value }))}
                 className="w-full border border-[#e0e3e5] rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 bg-white">
                 {selectedModelDef.names.map(n => <option key={n} value={n}>{n}</option>)}
+                <option value="custom">Custom Model</option>
               </select>
             </div>
           )}
