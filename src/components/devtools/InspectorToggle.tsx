@@ -170,6 +170,39 @@ const InspectorToggle = () => {
       }
     }
 
+    // Pass 3 — DOM tree walk: naik lewat parentElement jika fiber element sendiri gagal
+    if (!bestFiber) {
+      let domParent = el.parentElement
+      let domSteps = 0
+      while (domParent && domSteps < 12 && !bestFiber) {
+        const pKey = Object.keys(domParent).find(k => k.startsWith('__reactFiber$'))
+        if (pKey) {
+          let pCur: Fiber | null = (domParent as Record<string, unknown>)[pKey] as Fiber
+          let pAtt = 0
+          // Pass 1 on parent fiber
+          while (pCur && pAtt < 30) {
+            const isUserComp = typeof pCur.type === 'function' ||
+              (typeof pCur.type === 'object' && pCur.type !== null)
+            if (isUserComp && pCur._debugSource) { bestFiber = pCur; break }
+            pCur = pCur.return ?? null
+            pAtt++
+          }
+          // Pass 2 on parent fiber
+          if (!bestFiber) {
+            pCur = (domParent as Record<string, unknown>)[pKey] as Fiber
+            pAtt = 0
+            while (pCur && pAtt < 30) {
+              if (pCur._debugSource) { bestFiber = pCur; break }
+              pCur = pCur.return ?? null
+              pAtt++
+            }
+          }
+        }
+        domParent = domParent.parentElement
+        domSteps++
+      }
+    }
+
     const classHint = getElementDetails(el)
     let componentName: string, fileName: string, lineNumber: string
 
