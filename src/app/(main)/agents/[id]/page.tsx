@@ -32,16 +32,35 @@ export default function AgentPage() {
     })
   }, [id])
 
+  const [creating, setCreating] = useState(false)
+  const [createErr, setCreateErr] = useState('')
+
   async function createAgent() {
+    if (!form.name.trim() || creating) return
+    setCreating(true)
+    setCreateErr('')
     try {
-      const res = await fetch(`${BRIDGE}/api/agents`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form),
-      })
-      if (!res.ok) throw new Error(`Bridge error: ${res.status}`)
-      const a = await res.json()
-      router.push(`/agents/${a.id}`)
+      // Simpan langsung ke Supabase (tidak perlu bridge)
+      const { data, error } = await supabase.from('agents').insert({
+        name: form.name.trim(),
+        model: form.model || 'minimax-m2.5',
+        system_prompt: form.system_prompt || '',
+        status: 'idle',
+      }).select().single()
+
+      if (error) throw new Error(error.message)
+
+      // Notify bridge jika tersedia (fire & forget, tidak wajib)
+      fetch(`${BRIDGE}/api/agents`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: data.id, ...form }),
+      }).catch(() => {}) // ignore jika bridge tidak jalan
+
+      router.push(`/agents/${data.id}`)
     } catch (err) {
-      alert(`Gagal membuat agent. Pastikan bridge server berjalan di ${BRIDGE}\n\n${err}`)
+      setCreateErr(String(err))
+    } finally {
+      setCreating(false)
     }
   }
 
@@ -70,9 +89,14 @@ export default function AgentPage() {
             placeholder="You are a helpful assistant…"
             className="w-full border border-[#e0e3e5] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 outline-none resize-none" />
         </div>
-        <button onClick={createAgent}
-          className="w-full py-3 bg-primary text-white font-bold rounded-lg hover:opacity-90 transition-all">
-          Create Agent
+        {createErr && (
+          <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            {createErr}
+          </div>
+        )}
+        <button onClick={createAgent} disabled={!form.name.trim() || creating}
+          className="w-full py-3 bg-primary text-white font-bold rounded-lg hover:opacity-90 disabled:opacity-50 transition-all">
+          {creating ? 'Membuat agent…' : 'Create Agent'}
         </button>
       </div>
     </div>
