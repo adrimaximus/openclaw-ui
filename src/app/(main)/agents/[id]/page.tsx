@@ -18,7 +18,20 @@ export default function AgentPage() {
   const [loading,  setLoading]  = useState(true)
 
   // ── New agent form
-  const [form, setForm] = useState({ name: '', model: 'minimax-m2.5', system_prompt: '' })
+  const [form, setForm] = useState({
+    name:                '',
+    model:               'minimax-m2.5',
+    model_name:          'MiniMax-M2.5',
+    custom_model_name:   '',
+    system_prompt:       '',
+    credential:          '',
+    temperature:         0.9,
+    streaming:           true,
+    max_tokens:          '',
+    base_path:           'https://api.minimax.io/v1',
+    allow_image_uploads: false,
+    vision_model_name:   '',
+  })
 
   useEffect(() => {
     if (id === 'new') { setLoading(false); return }
@@ -91,14 +104,18 @@ export default function AgentPage() {
   }
 
   const MODELS_LIST = [
-    { value: 'minimax-m2.5',  label: 'MiniMax M2.5'     },
-    { value: 'gpt-4o',        label: 'GPT-4o'            },
-    { value: 'gpt-4o-mini',   label: 'GPT-4o mini'       },
-    { value: 'qwen2.5-72b',   label: 'Qwen 2.5 72B'      },
-    { value: 'claude-3-haiku', label: 'Claude 3 Haiku'   },
-    { value: 'flowise',       label: 'Flowise Chatflow'  },
-    { value: 'custom',        label: 'Custom Model'      },
+    { value: 'minimax-m2.5',  label: 'MiniMax M2.5',     basePath: 'https://api.minimax.io/v1',       names: ['MiniMax-M2.5', 'MiniMax-M2', 'abab7-chat', 'abab6.5s-chat'] },
+    { value: 'gpt-4o',        label: 'GPT-4o',           basePath: 'https://api.openai.com/v1',       names: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo']  },
+    { value: 'claude-3-haiku', label: 'Claude 3 Haiku',  basePath: 'https://api.anthropic.com',       names: ['claude-3-5-sonnet', 'claude-3-opus', 'claude-3-haiku']     },
+    { value: 'qwen2.5-72b',   label: 'Qwen 2.5 72B',     basePath: 'https://dashscope.aliyuncs.com/compatible-mode/v1', names: ['qwen-max', 'qwen-plus', 'qwen-turbo', 'qwen2.5-72b'] },
+    { value: 'glm',           label: 'GLM (ZhipuAI)',    basePath: 'https://open.bigmodel.cn/api/paas/v4', names: ['glm-4', 'glm-4v', 'glm-4-plus', 'glm-3-turbo'] },
+    { value: 'flowise',       label: 'Flowise Chatflow', basePath: '',                                names: []                                                         },
+    { value: 'custom',        label: 'Custom Model',     basePath: '',                                names: []                                                         },
   ]
+
+  const CREDENTIALS = ['GLM 5', 'GLM 4v', 'MiniMax-VL-01', 'M2.7', '+ Create New']
+
+  const selectedModelDef = MODELS_LIST.find(m => m.value === form.model)
 
   // ── New agent page
   if (id === 'new') return (
@@ -131,7 +148,15 @@ export default function AgentPage() {
           <div>
             <label className="block text-xs font-semibold text-[#6f797a] mb-1.5">Select Model <span className="text-red-400">*</span></label>
             <select value={form.model}
-              onChange={e => setForm(f => ({ ...f, model: e.target.value }))}
+              onChange={e => {
+                const m = MODELS_LIST.find(x => x.value === e.target.value)
+                setForm(f => ({
+                  ...f,
+                  model: e.target.value,
+                  model_name: m?.names[0] ?? '',
+                  base_path: m?.basePath ?? '',
+                }))
+              }}
               className="w-full border border-[#e0e3e5] rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 bg-white">
               {MODELS_LIST.map(m => (
                 <option key={m.value} value={m.value}>{m.label}</option>
@@ -141,12 +166,121 @@ export default function AgentPage() {
 
           {/* Instructions */}
           <div>
-            <label className="block text-xs font-semibold text-[#6f797a] mb-1.5">Instructions</label>
-            <textarea rows={8} value={form.system_prompt}
+            <label className="block text-xs font-semibold text-[#6f797a] mb-1.5">Instructions <span className="text-red-400">*</span></label>
+            <textarea rows={6} value={form.system_prompt}
               onChange={e => setForm(f => ({ ...f, system_prompt: e.target.value }))}
               placeholder="You are a helpful assistant. Be concise and professional.…"
               className="w-full border border-[#e0e3e5] rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 resize-none font-mono" />
             <p className="text-[11px] text-[#9ca3af] mt-1">{form.system_prompt.length} karakter</p>
+          </div>
+
+          {/* Connect Credential */}
+          <div>
+            <label className="block text-xs font-semibold text-[#6f797a] mb-1.5">Connect Credential <span className="text-red-400">*</span></label>
+            <div className="flex gap-2">
+              <select value={form.credential}
+                onChange={e => setForm(f => ({ ...f, credential: e.target.value }))}
+                className="flex-1 border border-[#e0e3e5] rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 bg-white">
+                <option value="">Pilih credential…</option>
+                {CREDENTIALS.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <button className="p-2.5 border border-[#e0e3e5] rounded-lg hover:bg-[#f2f4f6] transition-colors shrink-0">
+                <span className="material-symbols-outlined text-[18px] text-primary">edit</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Model Name */}
+          {selectedModelDef && selectedModelDef.names.length > 0 && (
+            <div>
+              <label className="block text-xs font-semibold text-[#6f797a] mb-1.5">Model Name <span className="text-red-400">*</span></label>
+              <select value={form.model_name}
+                onChange={e => setForm(f => ({ ...f, model_name: e.target.value }))}
+                className="w-full border border-[#e0e3e5] rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 bg-white">
+                {selectedModelDef.names.map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Custom Model Name */}
+          <div>
+            <label className="block text-xs font-semibold text-[#6f797a] mb-1.5">
+              Custom Model Name
+              <span className="ml-1 font-normal text-[#9ca3af]">(opsional)</span>
+            </label>
+            <input value={form.custom_model_name}
+              onChange={e => setForm(f => ({ ...f, custom_model_name: e.target.value }))}
+              placeholder="Enter model name"
+              className="w-full border border-[#e0e3e5] rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20" />
+          </div>
+
+          {/* Temperature */}
+          <div>
+            <label className="block text-xs font-semibold text-[#6f797a] mb-1.5">Temperature</label>
+            <input type="number" min={0} max={2} step={0.1}
+              value={form.temperature}
+              onChange={e => setForm(f => ({ ...f, temperature: parseFloat(e.target.value) || 0 }))}
+              className="w-full border border-[#e0e3e5] rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20" />
+          </div>
+
+          {/* Streaming */}
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-semibold text-[#6f797a]">Streaming</label>
+            <button onClick={() => setForm(f => ({ ...f, streaming: !f.streaming }))}
+              className={`relative rounded-full transition-colors shrink-0`}
+              style={{ width: 40, height: 22, background: form.streaming ? '#00899c' : '#e0e3e5' }}>
+              <span className="absolute rounded-full bg-white shadow transition-all"
+                style={{ width: 18, height: 18, top: 2, left: form.streaming ? 20 : 2 }} />
+            </button>
+          </div>
+
+          {/* Max Tokens */}
+          <div>
+            <label className="block text-xs font-semibold text-[#6f797a] mb-1.5">Max Tokens</label>
+            <input type="number" min={0}
+              value={form.max_tokens}
+              onChange={e => setForm(f => ({ ...f, max_tokens: e.target.value }))}
+              placeholder="Leave empty for default"
+              className="w-full border border-[#e0e3e5] rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20" />
+          </div>
+
+          {/* Base Path */}
+          <div>
+            <label className="block text-xs font-semibold text-[#6f797a] mb-1.5">Base Path</label>
+            <input value={form.base_path}
+              onChange={e => setForm(f => ({ ...f, base_path: e.target.value }))}
+              placeholder="https://api.openai.com/v1"
+              className="w-full border border-[#e0e3e5] rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20" />
+          </div>
+
+          {/* Allow Image Uploads */}
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-semibold text-[#6f797a]">Allow Image Uploads</label>
+            <button onClick={() => setForm(f => ({ ...f, allow_image_uploads: !f.allow_image_uploads }))}
+              className="relative rounded-full transition-colors shrink-0"
+              style={{ width: 40, height: 22, background: form.allow_image_uploads ? '#00899c' : '#e0e3e5' }}>
+              <span className="absolute rounded-full bg-white shadow transition-all"
+                style={{ width: 18, height: 18, top: 2, left: form.allow_image_uploads ? 20 : 2 }} />
+            </button>
+          </div>
+
+          {/* Vision Model Name */}
+          {form.allow_image_uploads && (
+            <div>
+              <label className="block text-xs font-semibold text-[#6f797a] mb-1.5">Vision Model Name</label>
+              <input value={form.vision_model_name}
+                onChange={e => setForm(f => ({ ...f, vision_model_name: e.target.value }))}
+                placeholder="MiniMax-VL-01"
+                className="w-full border border-[#e0e3e5] rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20" />
+            </div>
+          )}
+
+          {/* Tools */}
+          <div>
+            <label className="block text-xs font-semibold text-[#6f797a] mb-2">Tools</label>
+            <button className="w-full py-2.5 border border-[#e0e3e5] rounded-lg text-sm text-[#6f797a] hover:bg-[#f2f4f6] hover:text-primary transition-all">
+              + Add Tool
+            </button>
           </div>
 
           {createErr && (
