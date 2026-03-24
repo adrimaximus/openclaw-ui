@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
@@ -64,40 +64,168 @@ export default function AgentPage() {
     }
   }
 
+  // Preview chat state
+  const [previewMsgs, setPreviewMsgs] = useState<{ role: 'user' | 'assistant'; text: string }[]>([
+    { role: 'assistant', text: 'Halo! Ada yang bisa saya bantu?' }
+  ])
+  const [previewInput, setPreviewInput] = useState('')
+  const previewBottomRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    previewBottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [previewMsgs])
+
+  function sendPreview() {
+    if (!previewInput.trim()) return
+    const userMsg = previewInput.trim()
+    setPreviewInput('')
+    setPreviewMsgs(prev => [...prev, { role: 'user', text: userMsg }])
+    // Simulate response based on system prompt
+    setTimeout(() => {
+      const persona = form.name || 'Agent'
+      const reply = form.system_prompt
+        ? `[${persona}] Saya siap membantu sesuai instruksi yang diberikan.`
+        : `Halo! Saya ${persona}. Ada yang bisa saya bantu?`
+      setPreviewMsgs(prev => [...prev, { role: 'assistant', text: reply }])
+    }, 600)
+  }
+
+  const MODELS_LIST = [
+    { value: 'minimax-m2.5',  label: 'MiniMax M2.5'     },
+    { value: 'gpt-4o',        label: 'GPT-4o'            },
+    { value: 'gpt-4o-mini',   label: 'GPT-4o mini'       },
+    { value: 'qwen2.5-72b',   label: 'Qwen 2.5 72B'      },
+    { value: 'claude-3-haiku', label: 'Claude 3 Haiku'   },
+    { value: 'flowise',       label: 'Flowise Chatflow'  },
+    { value: 'custom',        label: 'Custom Model'      },
+  ]
+
   // ── New agent page
   if (id === 'new') return (
-    <div className="p-8 max-w-2xl mx-auto">
-      <Link href="/dashboard" className="text-sm text-[#6f797a] hover:text-primary flex items-center gap-1 mb-6">
-        <span className="material-symbols-outlined text-[16px]">arrow_back</span> Back
-      </Link>
-      <h2 className="text-2xl font-extrabold mb-6">New Agent</h2>
-      <div className="bg-white rounded-xl border border-[#e0e3e5] p-6 space-y-4">
-        {([
-          { key: 'name',          label: 'Agent Name',   placeholder: 'CustomerSupport_v1' },
-          { key: 'model',         label: 'Model',        placeholder: 'minimax-m2.5'        },
-        ] as const).map(({ key, label, placeholder }) => (
-          <div key={key}>
-            <label className="text-xs font-bold uppercase tracking-wider text-[#6f797a] block mb-1">{label}</label>
-            <input value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-              placeholder={placeholder}
-              className="w-full border border-[#e0e3e5] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 outline-none" />
-          </div>
-        ))}
-        <div>
-          <label className="text-xs font-bold uppercase tracking-wider text-[#6f797a] block mb-1">System Prompt</label>
-          <textarea rows={4} value={form.system_prompt} onChange={e => setForm(f => ({ ...f, system_prompt: e.target.value }))}
-            placeholder="You are a helpful assistant…"
-            className="w-full border border-[#e0e3e5] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 outline-none resize-none" />
+    <div className="flex h-full">
+
+      {/* ── Left: Config ── */}
+      <div className="w-[420px] shrink-0 border-r border-[#e0e3e5] bg-white flex flex-col h-full overflow-y-auto custom-scroll">
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-[#e0e3e5] flex items-center gap-3">
+          <Link href="/dashboard" className="p-1.5 hover:bg-[#f2f4f6] rounded-lg shrink-0">
+            <span className="material-symbols-outlined text-[18px] text-[#6f797a]">arrow_back</span>
+          </Link>
+          <span className="material-symbols-outlined text-[20px] text-primary">smart_toy</span>
+          <span className="font-bold text-[#191c1e]">{form.name || 'New Agent'}</span>
         </div>
-        {createErr && (
-          <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-            {createErr}
+
+        {/* Form */}
+        <div className="p-6 space-y-5 flex-1">
+
+          {/* Agent Name */}
+          <div>
+            <label className="block text-xs font-semibold text-[#6f797a] mb-1.5">Agent Name <span className="text-red-400">*</span></label>
+            <input value={form.name}
+              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+              placeholder="Clara, SupportBot, dsb"
+              className="w-full border border-[#e0e3e5] rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20" />
+          </div>
+
+          {/* Select Model */}
+          <div>
+            <label className="block text-xs font-semibold text-[#6f797a] mb-1.5">Select Model <span className="text-red-400">*</span></label>
+            <select value={form.model}
+              onChange={e => setForm(f => ({ ...f, model: e.target.value }))}
+              className="w-full border border-[#e0e3e5] rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 bg-white">
+              {MODELS_LIST.map(m => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Instructions */}
+          <div>
+            <label className="block text-xs font-semibold text-[#6f797a] mb-1.5">Instructions</label>
+            <textarea rows={8} value={form.system_prompt}
+              onChange={e => setForm(f => ({ ...f, system_prompt: e.target.value }))}
+              placeholder="You are a helpful assistant. Be concise and professional.…"
+              className="w-full border border-[#e0e3e5] rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 resize-none font-mono" />
+            <p className="text-[11px] text-[#9ca3af] mt-1">{form.system_prompt.length} karakter</p>
+          </div>
+
+          {createErr && (
+            <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              {createErr}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-[#e0e3e5]">
+          <button onClick={createAgent} disabled={!form.name.trim() || creating}
+            className="w-full py-3 bg-primary text-white font-bold rounded-lg hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+            <span className="material-symbols-outlined text-[18px]">rocket_launch</span>
+            {creating ? 'Membuat agent…' : 'Create Agent'}
+          </button>
+        </div>
+      </div>
+
+      {/* ── Right: Preview ── */}
+      <div className="flex-1 flex flex-col bg-[#f7f9fb]">
+        {/* Preview header */}
+        <div className="px-6 py-4 border-b border-[#e0e3e5] bg-white flex items-center justify-between">
+          <span className="font-bold text-[#191c1e] text-sm">Preview</span>
+          <button onClick={() => setPreviewMsgs([{ role: 'assistant', text: 'Halo! Ada yang bisa saya bantu?' }])}
+            className="p-1.5 hover:bg-[#f2f4f6] rounded-lg transition-colors">
+            <span className="material-symbols-outlined text-[18px] text-[#6f797a]">refresh</span>
+          </button>
+        </div>
+
+        {/* Config summary */}
+        {(form.name || form.model) && (
+          <div className="mx-6 mt-4 px-4 py-3 bg-white border border-[#e0e3e5] rounded-xl flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-[#cef0f5] text-primary flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-[16px]">smart_toy</span>
+            </div>
+            <div className="min-w-0">
+              <div className="font-semibold text-[#191c1e] text-sm truncate">{form.name || 'New Agent'}</div>
+              <div className="text-[11px] text-[#9ca3af]">{MODELS_LIST.find(m => m.value === form.model)?.label || form.model}</div>
+            </div>
           </div>
         )}
-        <button onClick={createAgent} disabled={!form.name.trim() || creating}
-          className="w-full py-3 bg-primary text-white font-bold rounded-lg hover:opacity-90 disabled:opacity-50 transition-all">
-          {creating ? 'Membuat agent…' : 'Create Agent'}
-        </button>
+
+        {/* Chat messages */}
+        <div className="flex-1 overflow-y-auto custom-scroll px-6 py-4 space-y-4">
+          {previewMsgs.map((m, i) => (
+            <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              {m.role === 'assistant' && (
+                <div className="w-7 h-7 rounded-full bg-[#cef0f5] text-primary flex items-center justify-center shrink-0 mr-2 mt-0.5">
+                  <span className="material-symbols-outlined text-[14px]">smart_toy</span>
+                </div>
+              )}
+              <div className={`max-w-[72%] px-4 py-2.5 rounded-2xl text-sm ${
+                m.role === 'user'
+                  ? 'bg-primary text-white rounded-br-sm'
+                  : 'bg-white border border-[#e0e3e5] text-[#191c1e] rounded-bl-sm'
+              }`}>
+                {m.text}
+              </div>
+            </div>
+          ))}
+          <div ref={previewBottomRef} />
+        </div>
+
+        {/* Preview input */}
+        <div className="px-6 py-4 border-t border-[#e0e3e5] bg-white">
+          <div className="flex gap-3">
+            <input value={previewInput}
+              onChange={e => setPreviewInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && sendPreview()}
+              placeholder="Ketik pesan untuk test…"
+              className="flex-1 border border-[#e0e3e5] rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20" />
+            <button onClick={sendPreview} disabled={!previewInput.trim()}
+              className="px-4 py-2.5 bg-primary text-white rounded-xl font-semibold text-sm hover:opacity-90 disabled:opacity-40">
+              <span className="material-symbols-outlined text-[18px]">send</span>
+            </button>
+          </div>
+          <p className="text-[10px] text-[#9ca3af] mt-2 text-center">Preview simulasi · Koneksi live butuh bridge server</p>
+        </div>
       </div>
     </div>
   )
