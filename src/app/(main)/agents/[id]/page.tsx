@@ -47,6 +47,11 @@ export default function AgentPage() {
 
   const [creating, setCreating] = useState(false)
   const [createErr, setCreateErr] = useState('')
+  
+  // Credential modal state
+  const [showCredentialModal, setShowCredentialModal] = useState(false)
+  const [newCredentialName, setNewCredentialName] = useState('')
+  const [newCredentialApiKey, setNewCredentialApiKey] = useState('')
 
   async function createAgent() {
     if (!form.name.trim() || creating) return
@@ -55,10 +60,19 @@ export default function AgentPage() {
     try {
       // Simpan langsung ke Supabase (tidak perlu bridge)
       const { data, error } = await supabase.from('agents').insert({
-        name: form.name.trim(),
-        model: form.model || 'minimax-m2.5',
-        system_prompt: form.system_prompt || '',
-        status: 'idle',
+        name:                form.name.trim(),
+        model:               form.model || 'minimax-m2.5',
+        model_name:          form.model_name,
+        custom_model_name:   form.custom_model_name,
+        system_prompt:       form.system_prompt,
+        credential:          form.credential,
+        temperature:         form.temperature,
+        streaming:           form.streaming,
+        max_tokens:          form.max_tokens ? parseInt(form.max_tokens) : null,
+        base_path:           form.base_path,
+        allow_image_uploads: form.allow_image_uploads,
+        vision_model_name:   form.vision_model_name,
+        status:              'idle',
       }).select().single()
 
       if (error) throw new Error(error.message)
@@ -189,6 +203,10 @@ export default function AgentPage() {
               <select value={form.credential}
                 onChange={e => {
                   const cred = e.target.value
+                  if (cred === '+ Create New') {
+                    setShowCredentialModal(true)
+                    return
+                  }
                   const mapping = CREDENTIAL_MODEL_MAP[cred]
                   setForm(f => ({
                     ...f,
