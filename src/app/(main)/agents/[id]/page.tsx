@@ -78,9 +78,21 @@ export default function AgentPage() {
       if (error) throw new Error(error.message)
 
       // Notify bridge jika tersedia (fire & forget, tidak wajib)
+      // base_path di-pass eksplisit agar override endpoint default di bridge
       fetch(`${BRIDGE}/api/agents`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: data.id, ...form }),
+        body: JSON.stringify({
+          id:                  data.id,
+          name:                form.name.trim(),
+          model:               form.model_name || form.model,  // nama model spesifik
+          system_prompt:       form.system_prompt,
+          base_url:            form.base_path,                 // override endpoint bridge
+          base_path:           form.base_path,
+          api_key:             '',                             // dari credential (tidak disimpan di client)
+          temperature:         form.temperature,
+          streaming:           form.streaming,
+          max_tokens:          form.max_tokens || null,
+        }),
       }).catch(() => {}) // ignore jika bridge tidak jalan
 
       router.push(`/agents/${data.id}`)
