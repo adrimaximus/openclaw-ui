@@ -127,7 +127,26 @@ export default function AgentPage() {
     { value: 'custom',        label: 'Custom Model',     basePath: '',                                names: []                                                         },
   ]
 
-  const CREDENTIALS = ['GLM 5', 'GLM 4v', 'MiniMax-VL-01', 'M2.7', '+ Create New']
+  const [credentials, setCredentials] = useState([
+    { name: 'GLM 5',         apiKey: '', baseUrl: 'https://open.bigmodel.cn/api/paas/v4' },
+    { name: 'GLM 4v',        apiKey: '', baseUrl: 'https://open.bigmodel.cn/api/paas/v4' },
+    { name: 'MiniMax-VL-01', apiKey: '', baseUrl: 'https://api.minimax.io/v1'            },
+    { name: 'M2.7',          apiKey: '', baseUrl: 'https://api.minimax.io/v1'            },
+  ])
+
+  function saveCredential() {
+    if (!newCredentialName.trim()) return
+    const newCred = {
+      name: newCredentialName.trim(),
+      apiKey: newCredentialApiKey,
+      baseUrl: form.base_path,
+    }
+    setCredentials(prev => [...prev, newCred])
+    setForm(f => ({ ...f, credential: newCred.name }))
+    setNewCredentialName('')
+    setNewCredentialApiKey('')
+    setShowCredentialModal(false)
+  }
 
   // Credential to model mapping
   const CREDENTIAL_MODEL_MAP: Record<string, { model: string; model_name: string; base_path: string }> = {
@@ -202,21 +221,22 @@ export default function AgentPage() {
             <div className="flex gap-2">
               <select value={form.credential}
                 onChange={e => {
-                  const cred = e.target.value
-                  if (cred === '+ Create New') {
+                  const val = e.target.value
+                  if (val === '__create_new__') {
                     setShowCredentialModal(true)
                     return
                   }
-                  const mapping = CREDENTIAL_MODEL_MAP[cred]
+                  const mapping = CREDENTIAL_MODEL_MAP[val]
                   setForm(f => ({
                     ...f,
-                    credential: cred,
+                    credential: val,
                     ...(mapping && { model: mapping.model, model_name: mapping.model_name, base_path: mapping.base_path })
                   }))
                 }}
                 className="flex-1 border border-[#e0e3e5] rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 bg-white">
                 <option value="">Pilih credential…</option>
-                {CREDENTIALS.map(c => <option key={c} value={c}>{c}</option>)}
+                {credentials.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                <option value="__create_new__">+ Create New</option>
               </select>
               <button className="p-2.5 border border-[#e0e3e5] rounded-lg hover:bg-[#f2f4f6] transition-colors shrink-0">
                 <span className="material-symbols-outlined text-[18px] text-primary">edit</span>
@@ -334,6 +354,87 @@ export default function AgentPage() {
           </button>
         </div>
       </div>
+
+      {/* ── Create Credential Modal ── */}
+      {showCredentialModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            {/* Header */}
+            <div className="px-6 py-5 border-b border-[#e0e3e5] flex items-center justify-between">
+              <div>
+                <h3 className="font-extrabold text-[#191c1e]">Create Credential</h3>
+                <p className="text-xs text-[#6f797a] mt-0.5">API key tersimpan secara lokal di sesi ini</p>
+              </div>
+              <button onClick={() => setShowCredentialModal(false)}
+                className="p-1.5 hover:bg-[#f2f4f6] rounded-lg">
+                <span className="material-symbols-outlined text-[20px] text-[#6f797a]">close</span>
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-4">
+              {/* Name */}
+              <div>
+                <label className="block text-xs font-semibold text-[#6f797a] mb-1.5">
+                  Credential Name <span className="text-red-400">*</span>
+                </label>
+                <input
+                  value={newCredentialName}
+                  onChange={e => setNewCredentialName(e.target.value)}
+                  placeholder="e.g. MiniMax Production, GLM Personal"
+                  autoFocus
+                  className="w-full border border-[#e0e3e5] rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+
+              {/* API Key */}
+              <div>
+                <label className="block text-xs font-semibold text-[#6f797a] mb-1.5">API Key</label>
+                <input
+                  type="password"
+                  value={newCredentialApiKey}
+                  onChange={e => setNewCredentialApiKey(e.target.value)}
+                  placeholder="sk-••••••••••••"
+                  className="w-full border border-[#e0e3e5] rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 font-mono"
+                />
+              </div>
+
+              {/* Base URL (readonly from selected model) */}
+              <div>
+                <label className="block text-xs font-semibold text-[#6f797a] mb-1.5">Base URL</label>
+                <input
+                  value={form.base_path}
+                  onChange={e => setForm(f => ({ ...f, base_path: e.target.value }))}
+                  placeholder="https://api.openai.com/v1"
+                  className="w-full border border-[#e0e3e5] rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                <p className="text-[11px] text-amber-700">
+                  API Key tidak dikirim ke server. Hanya nama credential yang disimpan ke Supabase.
+                </p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-[#e0e3e5] flex justify-end gap-3">
+              <button
+                onClick={() => { setShowCredentialModal(false); setNewCredentialName(''); setNewCredentialApiKey('') }}
+                className="px-5 py-2.5 text-sm font-semibold text-[#6f797a] border border-[#e0e3e5] rounded-lg hover:bg-[#f2f4f6]">
+                Batal
+              </button>
+              <button
+                onClick={saveCredential}
+                disabled={!newCredentialName.trim()}
+                className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold bg-primary text-white rounded-lg hover:opacity-90 disabled:opacity-40">
+                <span className="material-symbols-outlined text-[16px]">add</span>
+                Tambah Credential
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Right: Preview ── */}
       <div className="flex-1 flex flex-col bg-[#f7f9fb]">
